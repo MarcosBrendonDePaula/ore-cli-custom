@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Instant};
+use std::{sync::{Arc, atomic::{AtomicBool, Ordering}}};
 
 use colored::*;
 use drillx::{
@@ -42,14 +42,13 @@ impl Miner {
             );
 
             // Calc cutoff time
-            let cutoff_time = self.get_cutoff(proof, args.buffer_time).await;
+            // let cutoff_time = self.get_cutoff(proof, args.buffer_time).await;
 
             // Run drillx
             let solution = Self::find_hash_par(
                 proof,
-                cutoff_time,
                 args.threads,
-                config.min_difficulty as u32,
+                args.min_difficulty,
             )
             .await;
 
@@ -74,62 +73,62 @@ impl Miner {
 
     async fn find_hash_par(
         proof: Proof,
-        cutoff_time: u64,
         threads: u64,
         min_difficulty: u32,
     ) -> Solution {
         // Dispatch job to each thread
+        let stop_flag = Arc::new(AtomicBool::new(false));
         let progress_bar = Arc::new(spinner::new_progress_bar());
         progress_bar.set_message("Mining...");
         let handles: Vec<_> = (0..threads)
             .map(|i| {
-                std::thread::spawn({
-                    let proof = proof.clone();
-                    let progress_bar = progress_bar.clone();
+                let proof = proof.clone();
+                let progress_bar = progress_bar.clone();
+                let stop_flag = stop_flag.clone();
+                std::thread::spawn(move || {
+                    let mut nonce = u64::MAX.saturating_div(threads).saturating_mul(i);
+                    let mut best_nonce = nonce;
+                    let mut best_difficulty = 0;
+                    let mut best_hash = Hash::default();
                     let mut memory = equix::SolverMemory::new();
-                    move || {
-                        let timer = Instant::now();
-                        let mut nonce = u64::MAX.saturating_div(threads).saturating_mul(i);
-                        let mut best_nonce = nonce;
-                        let mut best_difficulty = 0;
-                        let mut best_hash = Hash::default();
-                        loop {
-                            // Create hash
-                            if let Ok(hx) = drillx::hash_with_memory(
-                                &mut memory,
-                                &proof.challenge,
-                                &nonce.to_le_bytes(),
-                            ) {
-                                let difficulty = hx.difficulty();
-                                if difficulty.gt(&best_difficulty) {
-                                    best_nonce = nonce;
-                                    best_difficulty = difficulty;
-                                    best_hash = hx;
-                                }
-                            }
-
-                            // Exit if time has elapsed
-                            if nonce % 100 == 0 {
-                                if timer.elapsed().as_secs().ge(&cutoff_time) {
-                                    if best_difficulty.ge(&min_difficulty) {
-                                        // Mine until min difficulty has been met
-                                        break;
-                                    }
-                                } else if i == 0 {
-                                    progress_bar.set_message(format!(
-                                        "Mining... ({} sec remaining)",
-                                        cutoff_time.saturating_sub(timer.elapsed().as_secs()),
-                                    ));
-                                }
-                            }
-
-                            // Increment nonce
-                            nonce += 1;
+                    loop {
+                        // Verificar se a flag de parada foi acionada
+                        if stop_flag.load(Ordering::Relaxed) {
+                            break;
                         }
 
-                        // Return the best nonce
-                        (best_nonce, best_difficulty, best_hash)
+                        // Create hash
+                        if let Ok(hx) = drillx::hash_with_memory(
+                            &mut memory,
+                            &proof.challenge,
+                            &nonce.to_le_bytes(),
+                        ) {
+                            let difficulty = hx.difficulty();
+                            if difficulty.ge(&best_difficulty) {
+                                best_nonce = nonce;
+                                best_difficulty = difficulty;
+                                best_hash = hx;
+                            }
+
+                            progress_bar.set_message(format!(
+                                "MIN_DIFFICULTY: {} > {} Mining...",
+                                min_difficulty,
+                                best_difficulty
+                            ));
+
+                            // Exit loop if difficulty meets or exceeds min_difficulty
+                            if best_difficulty.ge(&min_difficulty) {
+                                stop_flag.store(true, Ordering::Relaxed);
+                                break;
+                            }
+                        }
+
+                        // Increment nonce
+                        nonce += 1;
                     }
+
+                    // Return the best nonce
+                    (best_nonce, best_difficulty, best_hash)
                 })
             })
             .collect();
@@ -178,16 +177,6 @@ impl Miner {
             .saturating_add(EPOCH_DURATION)
             .saturating_sub(5) // Buffer
             .le(&clock.unix_timestamp)
-    }
-
-    async fn get_cutoff(&self, proof: Proof, buffer_time: u64) -> u64 {
-        let clock = get_clock(&self.rpc_client).await;
-        proof
-            .last_hash_at
-            .saturating_add(60)
-            .saturating_sub(buffer_time as i64)
-            .saturating_sub(clock.unix_timestamp)
-            .max(0) as u64
     }
 }
 
