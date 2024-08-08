@@ -46,7 +46,7 @@ impl Miner {
 
             // Run drillx
             let solution =
-                Self::find_hash_par(proof, /*cutoff_time*/ 0, args.cores, args.min_difficulty)
+                Self::find_hash_par(proof, /*cutoff_time 0, */args.cores, args.min_difficulty)
                     .await;
 
             // Submit most difficult hash
@@ -70,7 +70,7 @@ impl Miner {
 
     async fn find_hash_par(
         proof: Proof,
-        cutoff_time: u64,
+        // cutoff_time: u64,
         cores: u64,
         min_difficulty: u32,
     ) -> Solution {
