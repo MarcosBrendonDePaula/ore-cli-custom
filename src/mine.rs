@@ -46,7 +46,7 @@ impl Miner {
 
             // Run drillx
             let solution =
-                Self::find_hash_par(proof, cutoff_time, args.cores, args.min_difficulty)
+                Self::find_hash_par(proof, /*cutoff_time*/ 0, args.cores, args.min_difficulty)
                     .await;
 
             // Submit most difficult hash
@@ -86,7 +86,7 @@ impl Miner {
                 let progress_bar = progress_bar.clone();
                 let stop_flag = stop_flag.clone();
                 std::thread::spawn(move || {
-                    let mut nonce = u64::MAX.saturating_div(threads).saturating_mul(i);
+                    let mut nonce = u64::MAX.saturating_div(cores).saturating_mul(i.id as u64);
                     let mut best_nonce = nonce;
                     let mut best_difficulty = 0;
                     let mut best_hash = Hash::default();
@@ -101,14 +101,11 @@ impl Miner {
 
                     // Start hashing
                     // let timer = Instant::now();
-                    let mut nonce = u64::MAX.saturating_div(cores).saturating_mul(i.id as u64);
-                    let mut best_nonce = nonce;
-                    let mut best_difficulty = 0;
-                    let mut best_hash = Hash::default();
                     loop {
                         // Verificar se a flag de parada foi acionada
                         if stop_flag.load(Ordering::Relaxed) {
                             break;
+                        }
                         // Create hash
                         if let Ok(hx) = drillx::hash_with_memory(
                             &mut memory,
