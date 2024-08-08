@@ -7,8 +7,9 @@ use drillx::{
 };
 use ore_api::{
     consts::{BUS_ADDRESSES, BUS_COUNT, EPOCH_DURATION},
-    state::{Config, Proof},
+    state::{Bus, Config, Proof},
 };
+use ore_utils::AccountDeserialize;
 use rand::Rng;
 use solana_program::pubkey::Pubkey;
 use solana_rpc_client::spinner;
@@ -17,13 +18,15 @@ use solana_sdk::signer::Signer;
 use crate::{
     args::MineArgs,
     send_and_confirm::ComputeBudget,
-    utils::{amount_u64_to_string, get_clock, get_config, get_proof_with_authority, proof_pubkey},
+    utils::{
+        amount_u64_to_string, get_clock, get_config, get_updated_proof_with_authority, proof_pubkey,
+    },
     Miner,
 };
 
 impl Miner {
     pub async fn mine(&self, args: MineArgs) {
-        // Register, if needed.
+        // Open account, if needed.
         let signer = self.signer();
         self.open().await;
 
@@ -31,10 +34,14 @@ impl Miner {
         self.check_num_cores(args.cores);
 
         // Start mining loop
+        let mut last_hash_at = 0;
         loop {
             // Fetch proof
             let config = get_config(&self.rpc_client).await;
-            let proof = get_proof_with_authority(&self.rpc_client, signer.pubkey()).await;
+            let proof =
+                get_updated_proof_with_authority(&self.rpc_client, signer.pubkey(), last_hash_at)
+                    .await;
+            last_hash_at = proof.last_hash_at;
             println!(
                 "\nStake: {} ORE\n  Multiplier: {:12}x",
                 amount_u64_to_string(proof.balance),
@@ -42,26 +49,30 @@ impl Miner {
             );
 
             // Calc cutoff time
-            // let cutoff_time = self.get_cutoff(proof, args.buffer_time).await;
+            let cutoff_time = self.get_cutoff(proof, args.buffer_time).await;
 
             // Run drillx
             let solution =
                 Self::find_hash_par(proof, /*cutoff_time 0, */args.cores, args.min_difficulty)
                     .await;
 
-            // Submit most difficult hash
-            let mut compute_budget = 500_000;
+            // Build instruction set
             let mut ixs = vec![ore_api::instruction::auth(proof_pubkey(signer.pubkey()))];
+            let mut compute_budget = 500_000;
             if self.should_reset(config).await && rand::thread_rng().gen_range(0..100).eq(&0) {
                 compute_budget += 100_000;
                 ixs.push(ore_api::instruction::reset(signer.pubkey()));
             }
+
+            // Build mine ix
             ixs.push(ore_api::instruction::mine(
                 signer.pubkey(),
                 signer.pubkey(),
-                find_bus(),
+                self.find_bus().await,
                 solution,
             ));
+
+            // Submit transaction
             self.send_and_confirm(&ixs, ComputeBudget::Fixed(compute_budget), false)
                 .await
                 .ok();
@@ -182,14 +193,18 @@ impl Miner {
             .saturating_sub(5) // Buffer
             .le(&clock.unix_timestamp)
     }
+
+    async fn get_cutoff(&self, proof: Proof, buffer_time: u64) -> u64 {
+        let clock = get_clock(&self.rpc_client).await;
+        proof
+            .last_hash_at
+            .saturating_add(60)
+            .saturating_sub(buffer_time as i64)
+            .saturating_sub(clock.unix_timestamp)
+            .max(0) as u64
+    }
 }
 
 fn calculate_multiplier(balance: u64, top_balance: u64) -> f64 {
     1.0 + (balance as f64 / top_balance as f64).min(1.0f64)
-}
-
-// TODO Pick a better strategy (avoid draining bus)
-fn find_bus() -> Pubkey {
-    let i = rand::thread_rng().gen_range(0..BUS_COUNT);
-    BUS_ADDRESSES[i]
 }
