@@ -25,3 +25,13 @@ You can use the `-h` flag on any command to pull up a help menu with documentati
 ```sh
 ore -h
 ```
+
+## New Argument
+
+The `--min-difficulty` argument was previously controlled by Hardhat, but now you can directly specify the minimum difficulty expected to solve through the CLI. The difficulty range goes from 3 to 35.
+
+### Example Command
+
+```sh
+./ore --keypair id.json --min-difficulty 10
+```
