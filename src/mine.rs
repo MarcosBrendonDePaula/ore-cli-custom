@@ -28,7 +28,7 @@ impl Miner {
         self.open().await;
 
         // Check num threads
-        self.check_num_cores(args.threads);
+        self.check_num_cores(args.cores);
 
         // Start mining loop
         loop {
@@ -45,12 +45,9 @@ impl Miner {
             // let cutoff_time = self.get_cutoff(proof, args.buffer_time).await;
 
             // Run drillx
-            let solution = Self::find_hash_par(
-                proof,
-                args.threads,
-                args.min_difficulty,
-            )
-            .await;
+            let solution =
+                Self::find_hash_par(proof, cutoff_time, args.cores, args.min_difficulty)
+                    .await;
 
             // Submit most difficult hash
             let mut compute_budget = 500_000;
@@ -73,14 +70,17 @@ impl Miner {
 
     async fn find_hash_par(
         proof: Proof,
-        threads: u64,
+        cutoff_time: u64,
+        cores: u64,
         min_difficulty: u32,
     ) -> Solution {
         // Dispatch job to each thread
         let stop_flag = Arc::new(AtomicBool::new(false));
         let progress_bar = Arc::new(spinner::new_progress_bar());
         progress_bar.set_message("Mining...");
-        let handles: Vec<_> = (0..threads)
+        let core_ids = core_affinity::get_core_ids().unwrap();
+        let handles: Vec<_> = core_ids
+            .into_iter()
             .map(|i| {
                 let proof = proof.clone();
                 let progress_bar = progress_bar.clone();
@@ -91,12 +91,24 @@ impl Miner {
                     let mut best_difficulty = 0;
                     let mut best_hash = Hash::default();
                     let mut memory = equix::SolverMemory::new();
+                    // Return if core should not be used
+                    if (i.id as u64).ge(&cores) {
+                        return (0, 0, Hash::default());
+                    }
+
+                    // Pin to core
+                    let _ = core_affinity::set_for_current(i);
+
+                    // Start hashing
+                    // let timer = Instant::now();
+                    let mut nonce = u64::MAX.saturating_div(cores).saturating_mul(i.id as u64);
+                    let mut best_nonce = nonce;
+                    let mut best_difficulty = 0;
+                    let mut best_hash = Hash::default();
                     loop {
                         // Verificar se a flag de parada foi acionada
                         if stop_flag.load(Ordering::Relaxed) {
                             break;
-                        }
-
                         // Create hash
                         if let Ok(hx) = drillx::hash_with_memory(
                             &mut memory,
@@ -104,12 +116,12 @@ impl Miner {
                             &nonce.to_le_bytes(),
                         ) {
                             let difficulty = hx.difficulty();
-                            if difficulty.ge(&best_difficulty) {
+                            if difficulty.gt(&best_difficulty) {
                                 best_nonce = nonce;
                                 best_difficulty = difficulty;
                                 best_hash = hx;
                             }
-
+                            
                             progress_bar.set_message(format!(
                                 "MIN_DIFFICULTY: {} > {} Mining...",
                                 min_difficulty,
@@ -122,11 +134,8 @@ impl Miner {
                                 break;
                             }
                         }
-
-                        // Increment nonce
                         nonce += 1;
                     }
-
                     // Return the best nonce
                     (best_nonce, best_difficulty, best_hash)
                 })
@@ -157,14 +166,12 @@ impl Miner {
         Solution::new(best_hash.d, best_nonce.to_le_bytes())
     }
 
-    pub fn check_num_cores(&self, threads: u64) {
-        // Check num threads
+    pub fn check_num_cores(&self, cores: u64) {
         let num_cores = num_cpus::get() as u64;
-        if threads.gt(&num_cores) {
+        if cores.gt(&num_cores) {
             println!(
-                "{} Number of threads ({}) exceeds available cores ({})",
+                "{} Cannot exceeds available cores ({})",
                 "WARNING".bold().yellow(),
-                threads,
                 num_cores
             );
         }
