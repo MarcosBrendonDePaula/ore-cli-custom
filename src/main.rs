@@ -10,8 +10,10 @@ mod dynamic_fee;
 #[cfg(feature = "admin")]
 mod initialize;
 mod mine;
+mod mining_history;
 mod open;
 mod pool;
+mod pool_client;
 mod proof;
 mod rewards;
 mod send_and_confirm;
@@ -29,6 +31,7 @@ use solana_sdk::{
     signature::{read_keypair_file, Keypair},
 };
 
+#[derive(Clone)]
 struct Miner {
     pub keypair_filepath: Option<String>,
     pub priority_fee: Option<u64>,

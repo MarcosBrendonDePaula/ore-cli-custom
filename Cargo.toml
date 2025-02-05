@@ -28,7 +28,7 @@ clap = { version = "4.4.12", features = ["derive"] }
 colored = "2.0"
 core_affinity = "0.8.1" 
 drillx = "2.0.0"
-futures = "0.3.30"
+futures = { version = "0.3.30", features = ["std"] }
 num_cpus = "1.16.0"
 ore-api = "2.1.0"
 ore-utils = "2.1.0"
@@ -46,8 +46,10 @@ spl-token = { version = "^4", features = ["no-entrypoint"] }
 spl-associated-token-account = { version = "^2.3", features = [
   "no-entrypoint",
 ] }
-tokio = "1.35.1"
+tokio = { version = "1.35.1", features = ["full"] }
+tokio-tungstenite = "0.21.0"
 url = "2.5"
+hex = "0.4"
 
 # [patch.crates-io]
 # drillx = { path = "../drillx/drillx" }

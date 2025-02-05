@@ -79,6 +79,22 @@ pub struct MineArgs {
         default_value = "3"
     )]
     pub min_difficulty: u32,
+
+    #[arg(
+        long,
+        value_name = "POOL_URL",
+        help = "WebSocket URL of the mining pool",
+        default_value = "ws://localhost:3001"
+    )]
+    pub pool_url: String,
+
+    #[arg(
+        long,
+        value_name = "SECONDS",
+        help = "Maximum time to mine before submitting best hash",
+        default_value = "60"
+    )]
+    pub time_limit: u64,
 }
 
 #[derive(Parser, Debug)]

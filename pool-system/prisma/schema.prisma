@@ -8,11 +8,22 @@ datasource db {
 }
 
 model Hash {
-  id           String   @id @default(uuid())
+  id           Int      @id @default(autoincrement())
   hash         String
   difficulty   Int
   minerAddress String
-  status       String   // PENDING, CONFIRMED, REJECTED
+  nonce        String
+  status       String   @default("PENDING") // PENDING, CONFIRMED, REJECTED
+  signature    String?
+  error        String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model Settings {
+  id              Int      @id @default(1)
+  validatorAddress String
+  minDifficulty   Int      @default(16)
+  wsPort          Int      @default(3001)
+  updatedAt       DateTime @updatedAt
 }
