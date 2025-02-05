@@ -11,6 +11,7 @@ mod dynamic_fee;
 mod initialize;
 mod mine;
 mod open;
+mod pool;
 mod proof;
 mod rewards;
 mod send_and_confirm;

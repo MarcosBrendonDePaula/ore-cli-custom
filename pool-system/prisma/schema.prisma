@@ -1,0 +1,18 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Hash {
+  id           String   @id @default(uuid())
+  hash         String
+  difficulty   Int
+  minerAddress String
+  status       String   // PENDING, CONFIRMED, REJECTED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

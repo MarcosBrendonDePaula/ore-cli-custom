@@ -1166,6 +1166,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "custom-ore-cli"
+version = "2.1.0"
+dependencies = [
+ "bincode",
+ "bs58 0.5.1",
+ "bytemuck",
+ "cached",
+ "chrono",
+ "clap 4.5.9",
+ "colored",
+ "core_affinity",
+ "drillx",
+ "futures",
+ "num_cpus",
+ "ore-api",
+ "ore-utils",
+ "rand 0.8.5",
+ "reqwest 0.12.4",
+ "serde",
+ "serde_json",
+ "solana-cli-config",
+ "solana-client",
+ "solana-program",
+ "solana-rpc-client",
+ "solana-sdk",
+ "solana-transaction-status",
+ "spl-associated-token-account",
+ "spl-token",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "darling"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2768,38 +2801,6 @@ dependencies = [
  "spl-token",
  "static_assertions",
  "thiserror",
-]
-
-[[package]]
-name = "ore-cli"
-version = "2.1.0"
-dependencies = [
- "bincode",
- "bs58 0.5.1",
- "bytemuck",
- "cached",
- "chrono",
- "clap 4.5.9",
- "colored",
- "core_affinity",
- "drillx",
- "futures",
- "num_cpus",
- "ore-api",
- "ore-utils",
- "rand 0.8.5",
- "reqwest 0.12.4",
- "serde_json",
- "solana-cli-config",
- "solana-client",
- "solana-program",
- "solana-rpc-client",
- "solana-sdk",
- "solana-transaction-status",
- "spl-associated-token-account",
- "spl-token",
- "tokio",
- "url",
 ]
 
 [[package]]

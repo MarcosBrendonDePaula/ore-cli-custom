@@ -34,13 +34,14 @@ ore-api = "2.1.0"
 ore-utils = "2.1.0"
 rand = "0.8.4"
 reqwest = { version = "0.12", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 solana-cli-config = "^1.18"
 solana-client = "^1.18"
 solana-program = "^1.18"
 solana-rpc-client = "^1.18"
 solana-sdk = "^1.18"
 solana-transaction-status = "^1.18"
-serde_json = "1.0"
 spl-token = { version = "^4", features = ["no-entrypoint"] }
 spl-associated-token-account = { version = "^2.3", features = [
   "no-entrypoint",
@@ -52,4 +53,3 @@ url = "2.5"
 # drillx = { path = "../drillx/drillx" }
 # ore-api = { path = "../ore/api" }
 # ore-utils = { path = "../ore/utils" }
-

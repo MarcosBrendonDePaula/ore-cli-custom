@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:latest
+    container_name: ore_pool_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ore_pool
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # pool_system:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: ore_pool_system
+  #   environment:
+  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ore_pool
+  #     - NODE_ENV=production
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - postgres
+
+volumes:
+  postgres_data:
